@@ -744,46 +744,81 @@
             if (!currentSelection) return;
             
             const playerNum = currentSelection.player === 'player1' ? 1 : 2;
-            const deckCardNames = playerDeckCards[`player${playerNum}`];
+            const deckCards = playerDeckCards[`player${playerNum}`];
             
             // If no deck selected or searching all cards, don't pre-populate
-            if (deckCardNames.length === 0 || searchAllCards) {
+            if (deckCards.length === 0 || searchAllCards) {
                 document.getElementById('searchResults').innerHTML = '<div class="col-span-full text-center text-base-content/50">Search for Pokemon cards to add...</div>';
                 return;
             }
             
-            // Get unique card names from deck
-            const uniqueCardNames = [...new Set(deckCardNames)];
+            // Get unique cards from deck (by name+setCode+number)
+            const uniqueCards = [];
+            const seenKeys = new Set();
+            for (const card of deckCards) {
+                const key = `${card.name.toLowerCase()}|${card.setCode.toUpperCase()}|${card.number}`;
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    uniqueCards.push(card);
+                }
+            }
             
             // Fetch card data for all unique cards in the deck
             const allCards = [];
             const loadingIndicator = document.getElementById('searchResults');
             loadingIndicator.innerHTML = '<div class="col-span-full text-center"><span class="loading loading-spinner loading-md"></span> Loading Pokemon from deck...</div>';
             
-            for (const cardName of uniqueCardNames) {
+            for (const deckCard of uniqueCards) {
                 try {
-                    const response = await fetch(`/api/search/pokemon?q=${encodeURIComponent(cardName)}`);
+                    // Build search query with name, setCode, and number for precise matching
+                    let searchQuery = deckCard.name;
+                    if (deckCard.setCode && deckCard.number) {
+                        searchQuery = `${deckCard.name} ${deckCard.setCode} ${deckCard.number}`;
+                    } else if (deckCard.setCode) {
+                        searchQuery = `${deckCard.name} ${deckCard.setCode}`;
+                    }
+                    
+                    const response = await fetch(`/api/search/pokemon?q=${encodeURIComponent(searchQuery)}`);
                     const results = await response.json();
                     
-                    // FIXED: Only add cards that EXACTLY match the deck card name
                     // Filter to Pokemon cards first
                     const pokemonResults = results.filter(card => isPokemonCard(card));
                     
-                    // Look for exact name match (case-insensitive)
-                    const exactMatch = pokemonResults.find(card => 
-                        card.name.toLowerCase() === cardName.toLowerCase()
-                    );
+                    // Find exact match by name + setCode + number
+                    let exactMatch = null;
                     
-                    // IMPORTANT: Only add the card if we found an exact match
-                    // Don't fall back to "first result" as that causes incorrect cards to appear
+                    if (deckCard.setCode && deckCard.number) {
+                        // Try to match by name + set_abbreviation + card_number
+                        exactMatch = pokemonResults.find(card => 
+                            card.name.toLowerCase() === deckCard.name.toLowerCase() &&
+                            (card.set_abbreviation?.toUpperCase() === deckCard.setCode.toUpperCase() ||
+                             card.set_code?.toUpperCase() === deckCard.setCode.toUpperCase()) &&
+                            card.card_number === deckCard.number
+                        );
+                    }
+                    
+                    // Fall back to name + setCode only if no number match
+                    if (!exactMatch && deckCard.setCode) {
+                        exactMatch = pokemonResults.find(card => 
+                            card.name.toLowerCase() === deckCard.name.toLowerCase() &&
+                            (card.set_abbreviation?.toUpperCase() === deckCard.setCode.toUpperCase() ||
+                             card.set_code?.toUpperCase() === deckCard.setCode.toUpperCase())
+                        );
+                    }
+                    
+                    // Final fallback to exact name match only
+                    if (!exactMatch) {
+                        exactMatch = pokemonResults.find(card => 
+                            card.name.toLowerCase() === deckCard.name.toLowerCase()
+                        );
+                    }
+                    
                     if (exactMatch) {
                         allCards.push(exactMatch);
                     }
-                    // If no exact match found, we simply don't show that card
-                    // This prevents wrong cards from appearing in the list
                     
                 } catch (error) {
-                    console.error(`Error fetching card: ${cardName}`, error);
+                    console.error(`Error fetching card: ${deckCard.name}`, error);
                 }
             }
             
@@ -932,35 +967,47 @@
                     matchState[`player${playerNum}`].deckId = deckId;
                     matchState[`player${playerNum}`].deckName = deck.name;
                     
-                    // Extract all card names from the deck
-                    const cardNames = [];
+                    // Extract all card details from the deck (name, setCode, number for unique matching)
+                    const cardDetails = [];
                     if (deck.pokemon) {
                         deck.pokemon.forEach(p => {
                             for (let i = 0; i < (p.quantity || p.count || 1); i++) {
-                                cardNames.push(p.name);
+                                cardDetails.push({
+                                    name: p.name,
+                                    setCode: p.setCode || '',
+                                    number: p.number || ''
+                                });
                             }
                         });
                     }
                     if (deck.trainers) {
                         deck.trainers.forEach(t => {
                             for (let i = 0; i < (t.quantity || t.count || 1); i++) {
-                                cardNames.push(t.name);
+                                cardDetails.push({
+                                    name: t.name,
+                                    setCode: t.setCode || '',
+                                    number: t.number || ''
+                                });
                             }
                         });
                     }
                     if (deck.energy) {
                         deck.energy.forEach(e => {
                             for (let i = 0; i < (e.quantity || e.count || 1); i++) {
-                                cardNames.push(e.name);
+                                cardDetails.push({
+                                    name: e.name,
+                                    setCode: e.setCode || '',
+                                    number: e.number || ''
+                                });
                             }
                         });
                     }
                     
-                    playerDeckCards[`player${playerNum}`] = cardNames;
+                    playerDeckCards[`player${playerNum}`] = cardDetails;
                     
-                    // Count unique cards
-                    const uniqueCount = new Set(cardNames).size;
-                    deckInfo.innerHTML = `<span class="text-xs">${cardNames.length} cards (${uniqueCount} unique)</span>`;
+                    // Count unique cards (by name+setCode+number)
+                    const uniqueKeys = new Set(cardDetails.map(c => `${c.name}|${c.setCode}|${c.number}`));
+                    deckInfo.innerHTML = `<span class="text-xs">${cardDetails.length} cards (${uniqueKeys.size} unique)</span>`;
                     
                 } catch (error) {
                     console.error('Error loading deck:', error);
@@ -1409,7 +1456,7 @@
             populateDeckCards();
         }
         
-        // UPDATED: Search Pokemon with better deck filtering
+        // UPDATED: Search Pokemon with better deck filtering using name+setCode+number
         async function searchPokemon(event) {
             const query = event.target.value.trim();
             
@@ -1426,7 +1473,7 @@
             
             const searchAllCards = document.getElementById('searchAllCards').checked;
             const playerNum = currentSelection.player === 'player1' ? 1 : 2;
-            const deckCardNames = playerDeckCards[`player${playerNum}`];
+            const deckCards = playerDeckCards[`player${playerNum}`];
             
             try {
                 // Always search all cards from the API
@@ -1436,26 +1483,63 @@
                 // Filter to only Pokemon cards
                 results = results.filter(card => isPokemonCard(card));
                 
-                // If deck is selected and not searching all cards, filter by deck card names
-                if (deckCardNames.length > 0 && !searchAllCards) {
-                    // FIXED: Use exact matching for deck cards
-                    const deckCardNamesLower = new Set(deckCardNames.map(name => name.toLowerCase()));
+                // If deck is selected and not searching all cards, filter by deck cards (name+setCode+number)
+                if (deckCards.length > 0 && !searchAllCards) {
+                    // Build a set of unique deck card keys for matching
+                    const deckCardKeys = new Set();
+                    for (const dc of deckCards) {
+                        // Create multiple key formats for matching flexibility
+                        const nameLower = dc.name.toLowerCase();
+                        const setUpper = dc.setCode?.toUpperCase() || '';
+                        const number = dc.number || '';
+                        
+                        // Full key: name|setCode|number
+                        if (setUpper && number) {
+                            deckCardKeys.add(`${nameLower}|${setUpper}|${number}`);
+                        }
+                        // Partial key: name|setCode (for cards without number)
+                        if (setUpper) {
+                            deckCardKeys.add(`${nameLower}|${setUpper}|`);
+                        }
+                        // Name only (fallback)
+                        deckCardKeys.add(`${nameLower}||`);
+                    }
                     
-                    // Filter results to only include cards that are actually in the deck
+                    // Filter results to only include cards that match deck cards
                     results = results.filter(card => {
                         const cardNameLower = card.name.toLowerCase();
+                        const cardSet = card.set_abbreviation?.toUpperCase() || card.set_code?.toUpperCase() || '';
+                        const cardNumber = card.card_number || '';
                         
-                        // Check for exact match in deck
-                        return deckCardNamesLower.has(cardNameLower);
+                        // Check for exact match (name+set+number)
+                        if (deckCardKeys.has(`${cardNameLower}|${cardSet}|${cardNumber}`)) {
+                            return true;
+                        }
+                        
+                        // Check for set match (name+set)
+                        if (deckCardKeys.has(`${cardNameLower}|${cardSet}|`)) {
+                            return true;
+                        }
+                        
+                        // Check for name-only match (fallback for cards without set info)
+                        if (deckCardKeys.has(`${cardNameLower}||`)) {
+                            // Only allow name-only match if the deck card didn't have set info
+                            const deckCard = deckCards.find(dc => dc.name.toLowerCase() === cardNameLower);
+                            if (deckCard && !deckCard.setCode) {
+                                return true;
+                            }
+                        }
+                        
+                        return false;
                     });
                     
-                    // Remove duplicates by card name
+                    // Remove duplicates by unique card key (name+set+number)
                     const uniqueResults = [];
-                    const seenNames = new Set();
+                    const seenKeys = new Set();
                     for (const card of results) {
-                        const cardKey = `${card.name.toLowerCase()}_${card.set_name}_${card.card_number}`;
-                        if (!seenNames.has(cardKey)) {
-                            seenNames.add(cardKey);
+                        const cardKey = `${card.name.toLowerCase()}|${card.set_abbreviation || card.set_code || ''}|${card.card_number || ''}`;
+                        if (!seenKeys.has(cardKey)) {
+                            seenKeys.add(cardKey);
                             uniqueResults.push(card);
                         }
                     }
