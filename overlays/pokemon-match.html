@@ -271,7 +271,7 @@
             border-radius: 10px;
         }
         
-        /* Bench Section - supports 5-7 cards */
+        /* Bench Section - supports 5-8 cards */
         .bench-section {
             background: linear-gradient(135deg, rgba(0, 0, 0, 0.95) 0%, rgba(20, 20, 30, 0.95) 100%);
             border: 2px solid rgba(99, 102, 241, 0.5);
@@ -299,6 +299,12 @@
         .bench-cards.bench-7 .bench-slot {
             width: 46px;
             height: 64px;
+        }
+        
+        /* 8 bench layout - even smaller cards to fit */
+        .bench-cards.bench-8 .bench-slot {
+            width: 38px;
+            height: 53px;
         }
         
         .bench-slot {
@@ -1063,6 +1069,8 @@
             const player = matchState[`player${playerNum}`];
             const benchDiv = document.getElementById(`player${playerNum}Bench`);
             const benchSize = player.benchSize || 5;
+            
+            console.log(`Updating bench display for player ${playerNum}, benchSize: ${benchSize}`);
             
             // Update bench size class
             benchDiv.className = `bench-cards bench-${benchSize}`;

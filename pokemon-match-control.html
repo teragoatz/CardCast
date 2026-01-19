@@ -346,6 +346,7 @@
                         <select id="player1BenchSize" class="select select-bordered select-sm" onchange="updateBenchSize(1)">
                             <option value="5">5 (Standard)</option>
                             <option value="7">7 (Stadium/Ability)</option>
+                            <option value="8">8 (Area Zero Underdepths)</option>
                         </select>
                     </div>
                     <div class="grid grid-cols-4 gap-2" id="player1Bench">
@@ -479,6 +480,7 @@
                         <select id="player2BenchSize" class="select select-bordered select-sm" onchange="updateBenchSize(2)">
                             <option value="5">5 (Standard)</option>
                             <option value="7">7 (Stadium/Ability)</option>
+                            <option value="8">8 (Area Zero Underdepths)</option>
                         </select>
                     </div>
                     <div class="grid grid-cols-4 gap-2" id="player2Bench">
@@ -659,7 +661,7 @@
                 name: 'Player 1',
                 active: null,
                 benchSize: 5,
-                bench: [null, null, null, null, null, null, null],
+                bench: [null, null, null, null, null, null, null, null],
                 prizes: [false, false, false, false, false, false],
                 record: { wins: 0, losses: 0, ties: 0 },
                 matchScore: 0,
@@ -671,7 +673,7 @@
                 name: 'Player 2',
                 active: null,
                 benchSize: 5,
-                bench: [null, null, null, null, null, null, null],
+                bench: [null, null, null, null, null, null, null, null],
                 prizes: [false, false, false, false, false, false],
                 record: { wins: 0, losses: 0, ties: 0 },
                 matchScore: 0,
@@ -1752,7 +1754,7 @@
             container.innerHTML = benchHTML;
             
             // Adjust grid columns based on bench size
-            if (benchSize === 7) {
+            if (benchSize === 7 || benchSize === 8) {
                 container.className = 'grid grid-cols-4 gap-2';
             } else {
                 container.className = 'grid grid-cols-5 gap-2';
@@ -2004,7 +2006,7 @@
                 player1: {
                     name: player1Name,
                     active: null,
-                    bench: Array(7).fill(null),  // Support up to 7
+                    bench: Array(8).fill(null),  // Support up to 8
                     benchSize: 5,
                     prizes: [false, false, false, false, false, false],
                     record: { wins: 0, losses: 0, ties: 0 },
@@ -2016,7 +2018,7 @@
                 player2: {
                     name: player2Name,
                     active: null,
-                    bench: Array(7).fill(null),  // Support up to 7
+                    bench: Array(8).fill(null),  // Support up to 8
                     benchSize: 5,
                     prizes: [false, false, false, false, false, false],
                     record: { wins: 0, losses: 0, ties: 0 },
