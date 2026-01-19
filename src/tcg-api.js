@@ -184,15 +184,19 @@ class TCGApi {
     }
     
     async fetchPokemonCards(progressCallback, incremental = false, setCount = 'all') {
-        console.log(`Starting Pokemon card fetch (${incremental ? 'incremental' : 'full'}, ${setCount} sets)...`);
+        const isStandardLegal = setCount === 'standard';
+        console.log(`Starting Pokemon card fetch (${incremental ? 'incremental' : 'full'}, ${isStandardLegal ? 'standard legal' : setCount + ' sets'})...`);
         const cards = [];
         const cardMap = new Map();
+        
+        // Build legality query filter for standard legal cards
+        const legalityQuery = isStandardLegal ? ' legalities.standard:legal' : '';
         
         try {
             progressCallback({ 
                 status: 'fetching', 
                 percent: 5, 
-                message: 'Fetching available Pokemon sets...'
+                message: isStandardLegal ? 'Fetching standard legal Pokemon cards...' : 'Fetching available Pokemon sets...'
             });
             
             let allSets = [];
@@ -249,14 +253,14 @@ class TCGApi {
                     return [];
                 }
                 
-                if (setCount === 'all') {
+                if (setCount === 'all' || isStandardLegal) {
                     setsToFetch = availableSets;
                 } else {
                     const count = parseInt(setCount) || 3;
                     setsToFetch = availableSets.slice(0, count);
                 }
             } else {
-                if (setCount === 'all') {
+                if (setCount === 'all' || isStandardLegal) {
                     setsToFetch = allSets;
                 } else {
                     const count = parseInt(setCount) || 3;
@@ -265,6 +269,9 @@ class TCGApi {
             }
             
             console.log(`Will fetch ${setsToFetch.length} sets: ${setsToFetch.map(s => s.id).join(', ')}`);
+            if (isStandardLegal) {
+                console.log('Filtering to standard legal cards only');
+            }
             
             // Fetch cards from selected sets
             for (let i = 0; i < setsToFetch.length; i++) {
@@ -272,7 +279,7 @@ class TCGApi {
                 progressCallback({ 
                     status: 'downloading', 
                     percent: 10 + (i / setsToFetch.length) * 60, 
-                    message: `Fetching ${set.name} (${i + 1}/${setsToFetch.length})...`
+                    message: `Fetching ${set.name} (${i + 1}/${setsToFetch.length})${isStandardLegal ? ' [standard]' : ''}...`
                 });
                 
                 let retries = 3;
@@ -280,9 +287,12 @@ class TCGApi {
                 
                 while (retries > 0 && !success) {
                     try {
+                        // Build query - add legality filter if fetching standard legal only
+                        const query = `set.id:${set.id}${legalityQuery}`;
+                        
                         const response = await axios.get('https://api.pokemontcg.io/v2/cards', {
                             params: {
-                                q: `set.id:${set.id}`,
+                                q: query,
                                 pageSize: 250
                             },
                             timeout: 60000,

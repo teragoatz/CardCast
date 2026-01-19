@@ -280,13 +280,22 @@ function selectGame(gameId, hasData) {
 async function downloadGameData(gameId) {
 
     const setCount = document.querySelector('input[name="sets"]:checked')?.value || '1';
+    
+    // Show warning if standard legal selected for non-Pokemon game
+    if (setCount === 'standard' && gameId !== 'pokemon') {
+        showToast('Standard legal filter is only supported for Pokemon. Downloading all sets instead.');
+    }
+    
     showDownloadProgress(true);
     
     try {
         const response = await fetch(`/api/download/${gameId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ incremental: false, setCount })
+            body: JSON.stringify({ 
+                incremental: false, 
+                setCount: (setCount === 'standard' && gameId !== 'pokemon') ? 'all' : setCount 
+            })
         });
         
         if (!response.ok) {
@@ -302,13 +311,22 @@ async function downloadGameData(gameId) {
 // Update game data - UPDATED FOR COMING SOON
 async function updateGameData(gameId) {    
     const setCount = document.querySelector('input[name="sets"]:checked')?.value || '3';
+    
+    // Show warning if standard legal selected for non-Pokemon game
+    if (setCount === 'standard' && gameId !== 'pokemon') {
+        showToast('Standard legal filter is only supported for Pokemon. Updating all sets instead.');
+    }
+    
     showDownloadProgress(true);
     
     try {
         const response = await fetch(`/api/download/${gameId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ incremental: true, setCount })
+            body: JSON.stringify({ 
+                incremental: true, 
+                setCount: (setCount === 'standard' && gameId !== 'pokemon') ? 'all' : setCount 
+            })
         });
         
         if (!response.ok) {
@@ -1062,8 +1080,9 @@ socket.on('download-progress', (data) => {
     const progressText = document.getElementById('progressText');
     
     if (progressFill && progressText) {
-        progressFill.style.width = `${data.progress}%`;
-        progressText.textContent = `${data.progress}% - ${data.message || ''}`;
+        const percent = Math.round(data.progress);
+        progressFill.style.width = `${percent}%`;
+        progressText.textContent = `${percent}% - ${data.message || ''}`;
     }
 });
 
