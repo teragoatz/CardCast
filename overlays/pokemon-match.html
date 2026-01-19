@@ -809,7 +809,13 @@
             updateMatchInfo();
         });
         
-        socket.on('timer-start', () => {
+        socket.on('timer-start', (data) => {
+            // Sync timer value from control page before starting
+            if (data && data.minutes !== undefined) {
+                matchState.timer.minutes = data.minutes;
+                matchState.timer.seconds = data.seconds || 0;
+                updateMatchInfo();
+            }
             startTimer();
         });
         
@@ -817,8 +823,8 @@
             pauseTimer();
         });
         
-        socket.on('timer-reset', () => {
-            console.log('Timer reset received');
+        socket.on('timer-reset', (data) => {
+            console.log('Timer reset received', data);
             
             // Clear any existing timer interval
             if (matchState.timerInterval) {
@@ -826,8 +832,9 @@
                 matchState.timerInterval = null;
             }
             
-            // Reset timer values
-            matchState.timer = { minutes: 50, seconds: 0 };
+            // Reset timer values - use sent duration or default to 50
+            const minutes = (data && data.minutes) ? data.minutes : 50;
+            matchState.timer = { minutes: minutes, seconds: 0 };
             
             // Update display but DON'T start the timer
             updateMatchInfo();
@@ -1173,10 +1180,11 @@
             showOverlay();
         }, 500);
         
-        // Ping connection status periodically
-        setInterval(() => {
+        // Re-register on reconnect (socket.io handles reconnection automatically)
+        socket.on('connect', () => {
+            console.log('Socket reconnected, re-registering overlay');
             socket.emit('register-overlay', 'pokemon-match');
-        }, 5000);
+        });
     </script>
 </body>
 </html>
