@@ -504,11 +504,14 @@ io.on('connection', (socket) => {
     // Handle overlay registration
     socket.on('register-overlay', (type) => {
         overlayClients.add(socket.id);
+        const wasAlreadyConnected = overlayStates[type] === true;
         overlayStates[type] = true;
         console.log(`Overlay registered: ${type} (${socket.id})`);
         
-        // Notify all control panels that overlay is connected
-        io.emit('overlay-connected', type);
+        // Only notify control panels if this is a new connection
+        if (!wasAlreadyConnected) {
+            io.emit('overlay-connected', type);
+        }
         
         // Notify all main clients that OBS is connected
         io.emit('obs-status', { connected: true });
@@ -671,9 +674,9 @@ io.on('connection', (socket) => {
         io.emit('turn-switch', data);
     });
     
-    socket.on('timer-start', () => {
-        console.log('Timer start');
-        io.emit('timer-start');
+    socket.on('timer-start', (data) => {
+        console.log('Timer start', data);
+        io.emit('timer-start', data);
     });
     
     socket.on('timer-pause', () => {
@@ -681,9 +684,9 @@ io.on('connection', (socket) => {
         io.emit('timer-pause');
     });
     
-    socket.on('timer-reset', () => {
-        console.log('Timer reset');
-        io.emit('timer-reset');
+    socket.on('timer-reset', (data) => {
+        console.log('Timer reset', data);
+        io.emit('timer-reset', data);
     });
     
     socket.on('match-reset', () => {

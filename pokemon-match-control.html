@@ -533,12 +533,19 @@
                 <!-- Timer Control -->
                 <div class="border-b border-base-300 py-4">
                     <h3 class="text-sm uppercase tracking-wider text-primary font-semibold mb-3">Timer Control</h3>
-                    <div class="flex flex-wrap items-center gap-4">
-                        <div class="text-5xl font-mono font-bold text-primary bg-base-200 px-6 py-3 rounded-lg" id="timerDisplay">50:00</div>
-                        <div class="flex gap-2">
-                            <button class="btn btn-success" onclick="startTimer()">▶ Start</button>
-                            <button class="btn btn-warning" onclick="pauseTimer()">⏸ Pause</button>
-                            <button class="btn btn-neutral" onclick="resetTimer()">↺ Reset</button>
+                    <div class="flex flex-col gap-3">
+                        <div class="flex flex-wrap items-center gap-4">
+                            <div class="text-5xl font-mono font-bold text-primary bg-base-200 px-6 py-3 rounded-lg" id="timerDisplay">50:00</div>
+                            <div class="flex gap-2">
+                                <button class="btn btn-success" onclick="startTimer()">▶ Start</button>
+                                <button class="btn btn-warning" onclick="pauseTimer()">⏸ Pause</button>
+                                <button class="btn btn-neutral" onclick="resetTimer()">↺ Reset</button>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-sm">Duration (minutes):</label>
+                            <input type="number" id="timerDuration" class="input input-bordered input-sm w-20" min="1" max="999" value="50" onchange="saveTimerDuration()">
+                            <span class="text-xs text-base-content/50">Timer will reset to this duration</span>
                         </div>
                     </div>
                 </div>
@@ -698,6 +705,9 @@
             document.getElementById('player1Name').addEventListener('change', updatePlayerNames);
             document.getElementById('player2Name').addEventListener('change', updatePlayerNames);
             
+            // Load saved timer duration
+            loadTimerDuration();
+            
             // Register with server
             socket.emit('register-control', 'pokemon-match');
             
@@ -705,6 +715,10 @@
             socket.on('overlay-connected', (type) => {
                 if (type === 'pokemon-match') {
                     updateOverlayStatus(true);
+                    
+                    // Send current timer value to newly connected overlay
+                    const durationMinutes = parseInt(document.getElementById('timerDuration').value) || 50;
+                    socket.emit('timer-reset', { minutes: durationMinutes });
                 }
             });
             
@@ -1731,7 +1745,11 @@
         function startTimer() {
             if (matchState.timerInterval) return;
             
-            socket.emit('timer-start');
+            // Send start with current timer value so overlay is in sync
+            socket.emit('timer-start', { 
+                minutes: matchState.timer.minutes, 
+                seconds: matchState.timer.seconds 
+            });
             
             matchState.timerInterval = setInterval(() => {
                 if (matchState.timer.seconds > 0) {
@@ -1758,12 +1776,15 @@
             // Pause first
             pauseTimer();
             
+            // Get duration from input field
+            const durationMinutes = parseInt(document.getElementById('timerDuration').value) || 50;
+            
             // Then reset values
-            matchState.timer = { minutes: 50, seconds: 0 };
+            matchState.timer = { minutes: durationMinutes, seconds: 0 };
             updateTimerDisplay();
             
-            // Send reset but DON'T start
-            socket.emit('timer-reset');
+            // Send reset with duration value
+            socket.emit('timer-reset', { minutes: durationMinutes });
             saveMatchState();
         }
         
@@ -1771,6 +1792,26 @@
             const minutes = String(matchState.timer.minutes).padStart(2, '0');
             const seconds = String(matchState.timer.seconds).padStart(2, '0');
             document.getElementById('timerDisplay').textContent = `${minutes}:${seconds}`;
+        }
+        
+        function saveTimerDuration() {
+            const duration = parseInt(document.getElementById('timerDuration').value);
+            if (duration && duration > 0) {
+                localStorage.setItem('pokemonTimerDuration', duration);
+            }
+        }
+        
+        function loadTimerDuration() {
+            const savedDuration = localStorage.getItem('pokemonTimerDuration');
+            if (savedDuration) {
+                document.getElementById('timerDuration').value = savedDuration;
+                // Update initial timer state if not already running
+                if (!matchState.timerInterval) {
+                    matchState.timer.minutes = parseInt(savedDuration);
+                    matchState.timer.seconds = 0;
+                    updateTimerDisplay();
+                }
+            }
         }
         
         function updateMatchSettings() {
