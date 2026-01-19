@@ -317,10 +317,26 @@
                     <!-- HP Control -->
                     <div class="flex items-center gap-2 mt-2">
                         <span class="text-sm">HP:</span>
-                        <input type="number" id="player1ActiveHp" class="input input-bordered input-sm w-20" value="0" min="0">
+                        <input type="number" id="player1ActiveHp" class="input input-bordered input-sm w-20" value="0" min="0" step="10">
                         <span>/</span>
-                        <input type="number" id="player1ActiveMaxHp" class="input input-bordered input-sm w-20" value="0" min="0">
+                        <input type="number" id="player1ActiveMaxHp" class="input input-bordered input-sm w-20" value="0" min="0" step="10">
                         <button class="btn btn-sm" onclick="updateActiveHp(1)">Update</button>
+                    </div>
+                    
+                    <!-- Damage Control -->
+                    <div class="flex items-center gap-2 mt-2 flex-wrap">
+                        <span class="text-sm">Damage:</span>
+                        <input type="number" id="player1Damage" class="input input-bordered input-sm w-20" value="10" min="0" step="10">
+                        <button class="btn btn-error btn-sm" onclick="applyDamage(1)">Apply</button>
+                        <button class="btn btn-success btn-sm" onclick="healDamage(1)">Heal</button>
+                        <div class="flex gap-1">
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(1, 10)">10</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(1, 30)">30</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(1, 50)">50</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(1, 100)">100</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(1, 200)">200</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(1, 300)">300</button>
+                        </div>
                     </div>
                     
                     <!-- Bench -->
@@ -435,10 +451,25 @@
                     <!-- HP Control -->
                     <div class="flex items-center gap-2 mt-2">
                         <span class="text-sm">HP:</span>
-                        <input type="number" id="player2ActiveHp" class="input input-bordered input-sm w-20" value="0" min="0">
+                        <input type="number" id="player2ActiveHp" class="input input-bordered input-sm w-20" value="0" min="0" step="10">
                         <span>/</span>
-                        <input type="number" id="player2ActiveMaxHp" class="input input-bordered input-sm w-20" value="0" min="0">
+                        <input type="number" id="player2ActiveMaxHp" class="input input-bordered input-sm w-20" value="0" min="0" step="10">
                         <button class="btn btn-sm" onclick="updateActiveHp(2)">Update</button>
+                    </div>
+                    
+                    <!-- Damage Control -->
+                    <div class="flex items-center gap-2 mt-2 flex-wrap">
+                        <span class="text-sm">Damage:</span>
+                        <input type="number" id="player2Damage" class="input input-bordered input-sm w-20" value="10" min="0" step="10">
+                        <button class="btn btn-error btn-sm" onclick="applyDamage(2)">Apply</button>
+                        <button class="btn btn-success btn-sm" onclick="healDamage(2)">Heal</button>
+                        <div class="flex gap-1">
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(2, 10)">10</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(2, 20)">20</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(2, 30)">30</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(2, 50)">50</button>
+                            <button class="btn btn-xs btn-outline" onclick="setDamage(2, 100)">100</button>
+                        </div>
                     </div>
                     
                     <!-- Bench -->
@@ -1654,7 +1685,10 @@
                         <div class="font-bold">${player.active.name}</div>
                         <div class="text-sm opacity-70">HP: ${player.active.currentHp}/${player.active.maxHp}</div>
                         <div class="text-xs text-info mt-1">🔄 Drag to swap positions</div>
-                        <button class="btn btn-error btn-xs mt-2" onclick="removeActive(${playerNum})">Remove</button>
+                        <div class="flex gap-2 mt-2">
+                            <button class="btn btn-primary btn-xs" onclick="selectPokemonFor('player${playerNum}', 'active')">Swap</button>
+                            <button class="btn btn-error btn-xs" onclick="removeActive(${playerNum})">Remove</button>
+                        </div>
                     </div>
                 `;
                 
@@ -1694,8 +1728,12 @@
                                  onDragEnd="handleDragEnd(event)">
                                 <img src="${pokemon.image}" class="pokemon-card-aspect object-cover rounded w-full cursor-move">
                             </div>
-                            <button class="btn btn-circle btn-xs btn-error absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    onclick="removeBench(${playerNum}, ${i})">×</button>
+                            <div class="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button class="btn btn-circle btn-xs btn-primary"
+                                        onclick="selectPokemonFor('player${playerNum}', 'bench', ${i})" title="Swap">⇄</button>
+                                <button class="btn btn-circle btn-xs btn-error"
+                                        onclick="removeBench(${playerNum}, ${i})" title="Remove">×</button>
+                            </div>
                         </div>
                     `;
                 } else {
@@ -1761,6 +1799,32 @@
                 updateActiveDisplay(playerNum);
                 saveMatchState();
             }
+        }
+        
+        function setDamage(playerNum, amount) {
+            document.getElementById(`player${playerNum}Damage`).value = amount;
+        }
+        
+        function applyDamage(playerNum) {
+            const damage = parseInt(document.getElementById(`player${playerNum}Damage`).value) || 0;
+            const hpInput = document.getElementById(`player${playerNum}ActiveHp`);
+            const currentHp = parseInt(hpInput.value) || 0;
+            
+            const newHp = Math.max(0, currentHp - damage);
+            hpInput.value = newHp;
+            updateActiveHp(playerNum);
+        }
+        
+        function healDamage(playerNum) {
+            const heal = parseInt(document.getElementById(`player${playerNum}Damage`).value) || 0;
+            const hpInput = document.getElementById(`player${playerNum}ActiveHp`);
+            const maxHpInput = document.getElementById(`player${playerNum}ActiveMaxHp`);
+            const currentHp = parseInt(hpInput.value) || 0;
+            const maxHp = parseInt(maxHpInput.value) || currentHp;
+            
+            const newHp = Math.min(maxHp, currentHp + heal);
+            hpInput.value = newHp;
+            updateActiveHp(playerNum);
         }
         
         function togglePrize(playerNum, prizeIndex) {
